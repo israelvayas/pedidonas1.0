@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍩 Registro de Pedidos (Firebase)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* --- Paleta de Colores Unisex y Modernos --- */
+        :root {
+            --color-principal: #00BCD4; /* Cian Claro */
+            --color-secundario: #4CAF50; /* Verde Menta (Éxito) */
+            --color-fondo: #F5F5F5;
+            --color-texto: #333;
+            --color-sombra: rgba(0, 0, 0, 0.15);
+            --color-advertencia: #F44336; /* Rojo */
+            --color-gris: #9E9E9E;
+            --color-resalte: #FFC107; /* Amarillo para resaltar */
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--color-fondo);
+            color: var(--color-texto);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .contenedor-registro {
+            background-color: white;
+            padding: 30px 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px var(--color-sombra);
+            width: 100%;
+            max-width: 450px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--color-principal);
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .formulario-grupo {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 700;
+            color: var(--color-texto);
+            font-size: 0.9em;
+        }
+
+        input[type="text"],
+        textarea,
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--color-gris);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, textarea:focus {
+            border-color: var(--color-principal);
+            outline: none;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 50px;
+        }
+
+        .resultado-total {
+            padding: 10px;
+            background-color: var(--color-principal);
+            color: white;
+            border-radius: 6px;
+            font-size: 1.2em;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .resultado-total span#totalPagar {
+            background-color: var(--color-resalte); 
+            padding: 4px 10px;
+            border-radius: 4px;
+            color: var(--color-texto);
+        }
+
+        .botones-accion {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: space-between;
+        }
+        
+        .botones-accion button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        /* BOTÓN REGISTRAR RESALTADO */
+        #btnRegistrar {
+            flex: 2; 
+            background-color: var(--color-secundario);
+            color: white;
+            font-size: 1.1em;
+            box-shadow: 0 4px 0 #388E3C; 
+        }
+        #btnRegistrar:active {
+            box-shadow: none;
+            transform: translateY(4px);
+        }
+        
+        #btnVerPedidos {
+            flex: 1; 
+            background-color: var(--color-gris);
+            color: white;
+        }
+
+        /* --- Estilos del Modal (Ventana de Pedidos) --- */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6); 
+            padding: 15px;
+        }
+
+        .modal-contenido {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px var(--color-sombra);
+            width: 95%;
+            max-width: 700px;
+        }
+
+        .cerrar-modal {
+            color: var(--color-gris);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        /* --- ESTILOS DE TABLA RESTAURADOS Y MEJORADOS --- */
+        #tablaPedidos {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            color: #000; /* Texto más negro por defecto */
+        }
+        
+        #tablaPedidos th, #tablaPedidos td {
+            padding: 8px;
+            border: 1px solid #eee;
+            text-align: left;
+            font-size: 0.85em;
+        }
+
+        #tablaPedidos th {
+            background-color: var(--color-principal);
+            color: white;
+            font-weight: 700;
+        }
+        
+        /* ESTILO PARA PEDIDOS ENTREGADOS (TACHADO Y GRIS PLOMO) */
+        #tablaPedidos tr.entregado td {
+            text-decoration: line-through;
+            color: #A9A9A9; /* Gris Plomo */
+            opacity: 0.8;
+            font-style: italic;
+        }
+        /* Asegura que los botones dentro de la celda no se tachen */
+        #tablaPedidos tr.entregado .btn-pedido-accion {
+            text-decoration: none; 
+            opacity: 1;
+        }
+        
+        /* Estilo para el pie de tabla */
+        #tablaPedidos tfoot td {
+            background-color: #e0f7fa; 
+            font-weight: 700;
+            font-size: 1em;
+        }
+
+        /* CONTENEDOR DE TOASTS */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 200;
+        }
+        .toast {
+            min-width: 250px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+            transform: translateY(-20px);
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .toast.success {
+            background-color: var(--color-secundario);
+        }
+        .toast.error {
+            background-color: var(--color-advertencia);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="contenedor-registro">
+        <h1>🍩 Nuevo Pedido Rápido</h1>
+
+        <div class="formulario-grupo">
+            <label for="nombreCliente">Cliente:</label>
+            <input type="text" id="nombreCliente" placeholder="Nombre del cliente" required>
+        </div>
+
+        <div class="formulario-grupo">
+            <label for="descripcionPedido">Descripción:</label>
+            <textarea id="descripcionPedido" placeholder="Sabores, Cantidad, Toppings..." required></textarea>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <div class="formulario-grupo" style="flex: 1;">
+                <label for="cantidadDonas">Cant:</label>
+                <input type="number" id="cantidadDonas" min="1" value="1" oninput="calcularTotal()" required>
+            </div>
+            <div class="formulario-grupo" style="flex: 1;">
+                <label for="precioUnitario">Precio Unit:</label>
+                <input type="number" id="precioUnitario" min="0.01" step="0.01" value="1.50" oninput="calcularTotal()" required>
+            </div>
+        </div>
+
+        <div class="resultado-total">
+            <span>TOTAL:</span>
+            <span id="totalPagar">$ 1.50</span>
+        </div>
+        
+        <div class="botones-accion">
+            <button id="btnRegistrar" onclick="registrarPedido()">✨ Registrar Pedido</button>
+            <button id="btnVerPedidos" onclick="abrirModal()">👁️ Ver Pedidos</button>
+        </div>
+        
+    </div>
+
+    <div id="modalPedidos" class="modal">
+        <div class="modal-contenido">
+            <span class="cerrar-modal" onclick="cerrarModal()">&times;</span>
+            <h2>📝 Pedidos Registrados</h2>
+            
+            <div style="overflow-x: auto;">
+                <table id="tablaPedidos">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Descripción</th>
+                            <th>Total</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaPedidos">
+                        <tr><td colspan="4" style="text-align: center;">Cargando pedidos...</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2" style="text-align: right;">TOTAL GENERAL:</td>
+                            <td id="totalGeneral" colspan="2">$ 0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+        </div>
+    </div>
+    
+    <div id="toast-container"></div>
+
+    <script type="module">
+        // Importar las funciones necesarias de Firebase SDK (v9+)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // 1. Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDvAkI_aBIiezkbSEwgdmpduaGKtw4XLOs",
+            authDomain: "controlceo-fdd05.firebaseapp.com",
+            projectId: "controlceo-fdd05",
+            storageBucket: "controlceo-fdd05.firebasestorage.app",
+            messagingSenderId: "207151362101",
+            appId: "1:207151362101:web:4045b3c12f28bc0e55417c"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const PEDIDOS_COLLECTION = "pedidos_minidonas";
+        const pedidosRef = collection(db, PEDIDOS_COLLECTION);
+        
+        let pedidos = []; 
+        
+        // --- FUNCIÓN DE TOAST (NOTIFICACIÓN FLOTANTE) ---
+        function mostrarToast(mensaje, tipo) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${tipo}`;
+            toast.textContent = mensaje;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10); 
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 4000);
+        }
+
+        // --- FUNCIONES DE LÓGICA DE NEGOCIO ---
+        
+        window.calcularTotal = function() {
+            const cantidad = parseFloat(document.getElementById('cantidadDonas').value) || 0;
+            const precio = parseFloat(document.getElementById('precioUnitario').value) || 0;
+            const total = cantidad * precio;
+            
+            document.getElementById('totalPagar').textContent = `$ ${total.toFixed(2)}`;
+            return total;
+        }
+
+        window.registrarPedido = async function() {
+            const nombre = document.getElementById('nombreCliente').value.trim();
+            const descripcion = document.getElementById('descripcionPedido').value.trim();
+            const cantidad = parseInt(document.getElementById('cantidadDonas').value);
+            const total = calcularTotal();
+
+            if (!nombre || !descripcion || cantidad < 1 || total <= 0) {
+                mostrarToast('❌ Por favor, completa todos los campos correctamente.', 'error');
+                return;
+            }
+
+            try {
+                const nuevoPedido = {
+                    nombre: nombre,
+                    descripcion: descripcion,
+                    cantidad: cantidad,
+                    total: total,
+                    entregado: false,
+                    timestamp: Date.now() 
+                };
+
+                await addDoc(pedidosRef, nuevoPedido);
+                
+                mostrarToast(`✅ Pedido de ${nombre} registrado con éxito en la nube.`, 'success');
+                
+                document.getElementById('nombreCliente').value = '';
+                document.getElementById('descripcionPedido').value = '';
+                document.getElementById('cantidadDonas').value = '1';
+                document.getElementById('precioUnitario').value = '1.50';
+                calcularTotal(); 
+
+                if (document.getElementById('modalPedidos').style.display === 'block') {
+                    await cargarPedidos();
+                }
+
+            } catch (e) {
+                console.error("Error añadiendo documento: ", e);
+                mostrarToast(`🛑 Error al registrar: ${e.message}`, 'error');
+            }
+        }
+        
+        window.cargarPedidos = async function() {
+            const listaPedidos = document.getElementById('listaPedidos');
+            listaPedidos.innerHTML = '<tr><td colspan="4" style="text-align: center;">Cargando...</td></tr>';
+
+            try {
+                // Consulta ordenada: los más recientes (timestamp más alto) primero
+                const q = query(pedidosRef, orderBy("timestamp", "desc"));
+                const querySnapshot = await getDocs(q);
+                
+                pedidos = [];
+                querySnapshot.forEach((doc) => {
+                    pedidos.push({ id: doc.id, ...doc.data() });
+                });
+
+                actualizarListaPedidosUI();
+
+            } catch (e) {
+                console.error("Error cargando pedidos: ", e);
+                mostrarToast('🛑 Error al cargar los pedidos de Firebase.', 'error');
+                listaPedidos.innerHTML = '<tr><td colspan="4" style="text-align: center;">Error al cargar los datos.</td></tr>';
+            }
+        }
+        
+        function actualizarListaPedidosUI() {
+            const listaPedidos = document.getElementById('listaPedidos');
+            listaPedidos.innerHTML = '';
+            let totalAcumulado = 0;
+
+            if (pedidos.length === 0) {
+                listaPedidos.innerHTML = '<tr><td colspan="4" style="text-align: center;">No hay pedidos registrados.</td></tr>';
+                document.getElementById('totalGeneral').textContent = `$ 0.00`;
+                return;
+            }
+
+            pedidos.forEach(pedido => {
+                const newRow = listaPedidos.insertRow();
+                // Aplica la clase 'entregado' si el pedido ya fue marcado como tal
+                newRow.className = pedido.entregado ? 'entregado' : '';
+                
+                // Cliente y descripción 
+                newRow.insertCell().textContent = pedido.nombre;
+                newRow.insertCell().textContent = `${pedido.descripcion} (${pedido.cantidad} u.)`; 
+                
+                // Total
+                newRow.insertCell().textContent = `$ ${pedido.total.toFixed(2)}`;
+
+                // Botones de acción
+                const accionCell = newRow.insertCell();
+                
+                // Botón Entregado/Pendiente
+                const btnEntregado = document.createElement('button');
+                btnEntregado.className = 'btn-pedido-accion btn-entregado';
+                btnEntregado.textContent = pedido.entregado ? '❌ Destachar' : '✔️ Entregado';
+                btnEntregado.onclick = () => alternarEntregado(pedido.id, !pedido.entregado);
+                accionCell.appendChild(btnEntregado);
+
+                // Botón Eliminar
+                const btnEliminar = document.createElement('button');
+                btnEliminar.className = 'btn-pedido-accion btn-eliminar';
+                btnEliminar.textContent = '🗑️ Eliminar';
+                btnEliminar.onclick = () => eliminarPedido(pedido.id);
+                accionCell.appendChild(btnEliminar);
+                
+                totalAcumulado += pedido.total;
+            });
+            
+            document.getElementById('totalGeneral').textContent = `$ ${totalAcumulado.toFixed(2)}`;
+        }
+        
+        window.alternarEntregado = async function(id, estado) {
+            try {
+                const pedidoDoc = doc(db, PEDIDOS_COLLECTION, id);
+                await updateDoc(pedidoDoc, {
+                    entregado: estado
+                });
+                mostrarToast(`✔️ Pedido actualizado a ${estado ? 'Entregado' : 'Pendiente'}.`, 'success');
+                await cargarPedidos(); 
+            } catch (e) {
+                console.error("Error actualizando pedido: ", e);
+                mostrarToast('🛑 Error al actualizar el pedido.', 'error');
+            }
+        }
+        
+        window.eliminarPedido = async function(id) {
+            if (!confirm("⚠️ ¿Seguro desea eliminar este pedido permanentemente? Esta acción no se puede deshacer.")) {
+                return;
+            }
+
+            try {
+                await deleteDoc(doc(db, PEDIDOS_COLLECTION, id));
+                mostrarToast('🗑️ Pedido eliminado correctamente.', 'success');
+                await cargarPedidos(); 
+            } catch (e) {
+                console.error("Error eliminando pedido: ", e);
+                mostrarToast('🛑 Error al eliminar el pedido.', 'error');
+            }
+        }
+
+        // --- Funciones para el Modal ---
+        window.abrirModal = async function() {
+            document.getElementById('modalPedidos').style.display = 'block';
+            await cargarPedidos(); 
+        }
+
+        window.cerrarModal = function() {
+            document.getElementById('modalPedidos').style.display = 'none';
+        }
+        
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalPedidos');
+            if (event.target === modal) {
+                cerrarModal();
+            }
+        }
+
+        window.onload = calcularTotal;
+    </script>
+
+</body>
+</html>
