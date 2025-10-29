@@ -16,6 +16,7 @@
             --color-advertencia: #F44336; /* Rojo */
             --color-gris: #9E9E9E;
             --color-resalte: #FFC107; /* Amarillo para resaltar */
+            --color-editar: #2196F3; /* Azul para Editar */
         }
 
         body {
@@ -137,7 +138,7 @@
             color: white;
         }
 
-        /* --- Estilos del Modal (Ventana de Pedidos) --- */
+        /* --- Estilos de los Modales (Ventana de Pedidos y Edición) --- */
         .modal {
             display: none; 
             position: fixed;
@@ -160,6 +161,11 @@
             width: 95%;
             max-width: 700px;
         }
+        
+        #modalEdicion .modal-contenido {
+            max-width: 450px; /* Modal de edición más pequeño */
+            margin-top: 10%;
+        }
 
         .cerrar-modal {
             color: var(--color-gris);
@@ -168,12 +174,12 @@
             font-weight: bold;
         }
         
-        /* --- ESTILOS DE TABLA RESTAURADOS Y MEJORADOS --- */
+        /* --- ESTILOS DE TABLA Y BOTONES MEJORADOS --- */
         #tablaPedidos {
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
-            color: #000; /* Texto más negro por defecto */
+            color: #000;
         }
         
         #tablaPedidos th, #tablaPedidos td {
@@ -181,6 +187,11 @@
             border: 1px solid #eee;
             text-align: left;
             font-size: 0.85em;
+        }
+        /* Ajuste de ancho para la columna de acciones */
+        #tablaPedidos th:last-child, #tablaPedidos td:last-child {
+            width: 1%; 
+            white-space: nowrap; 
         }
 
         #tablaPedidos th {
@@ -192,11 +203,11 @@
         /* ESTILO PARA PEDIDOS ENTREGADOS (TACHADO Y GRIS PLOMO) */
         #tablaPedidos tr.entregado td {
             text-decoration: line-through;
-            color: #A9A9A9; /* Gris Plomo */
+            color: #A9A9A9;
             opacity: 0.8;
             font-style: italic;
         }
-        /* Asegura que los botones dentro de la celda no se tachen */
+        
         #tablaPedidos tr.entregado .btn-pedido-accion {
             text-decoration: none; 
             opacity: 1;
@@ -209,7 +220,44 @@
             font-size: 1em;
         }
 
-        /* CONTENEDOR DE TOASTS */
+        /* ESTILOS DE BOTONES DE ACCIÓN COMPACTOS CON ICONOS */
+        .btn-pedido-accion {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2em;
+            margin: 0 2px;
+            padding: 3px;
+            transition: color 0.2s;
+        }
+        .btn-pedido-accion:hover {
+            opacity: 0.8;
+        }
+
+        /* Colores específicos de los botones de acción */
+        .btn-entregado { color: var(--color-secundario); }
+        .btn-deshacer { color: var(--color-advertencia); }
+        .btn-eliminar { color: #555; }
+        .btn-editar { color: var(--color-editar); }
+        
+        /* Botón de Guardar en Modal de Edición */
+        #btnGuardarEdicion {
+            background-color: var(--color-editar);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 15px;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+        #btnGuardarEdicion:hover {
+            background-color: #1976D2; /* Azul más oscuro al pasar el ratón */
+        }
+
+        /* CONTENEDOR DE TOASTS (Sin cambios) */
         #toast-container {
             position: fixed;
             top: 20px;
@@ -307,6 +355,46 @@
         </div>
     </div>
     
+    <div id="modalEdicion" class="modal">
+        <div class="modal-contenido">
+            <span class="cerrar-modal" onclick="cerrarModalEdicion()">&times;</span>
+            <h2>✏️ Editar Pedido</h2>
+            
+            <div id="formularioEdicion">
+                <input type="hidden" id="editId">
+                
+                <div class="formulario-grupo">
+                    <label for="editNombre">Cliente:</label>
+                    <input type="text" id="editNombre" required>
+                </div>
+
+                <div class="formulario-grupo">
+                    <label for="editDescripcion">Descripción:</label>
+                    <textarea id="editDescripcion" required></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <div class="formulario-grupo" style="flex: 1;">
+                        <label for="editCantidad">Cant:</label>
+                        <input type="number" id="editCantidad" min="1" oninput="calcularTotalEdicion()" required>
+                    </div>
+                    <div class="formulario-grupo" style="flex: 1;">
+                        <label for="editPrecioUnitario">Precio Unit:</label>
+                        <input type="number" id="editPrecioUnitario" min="0.01" step="0.01" oninput="calcularTotalEdicion()" required>
+                    </div>
+                </div>
+
+                <div class="resultado-total">
+                    <span>TOTAL A PAGAR:</span>
+                    <span id="editTotalPagar">$ 0.00</span>
+                </div>
+                
+                <button id="btnGuardarEdicion" onclick="guardarEdicion()">💾 Guardar Cambios</button>
+            </div>
+            
+        </div>
+    </div>
+    
     <div id="toast-container"></div>
 
     <script type="module">
@@ -351,7 +439,7 @@
             }, 4000);
         }
 
-        // --- FUNCIONES DE LÓGICA DE NEGOCIO ---
+        // --- FUNCIONES DE LÓGICA DE NEGOCIO Y CRUD ---
         
         window.calcularTotal = function() {
             const cantidad = parseFloat(document.getElementById('cantidadDonas').value) || 0;
@@ -361,11 +449,22 @@
             document.getElementById('totalPagar').textContent = `$ ${total.toFixed(2)}`;
             return total;
         }
+        
+        // **NUEVA FUNCIÓN** para calcular el total en el modal de edición
+        window.calcularTotalEdicion = function() {
+            const cantidad = parseFloat(document.getElementById('editCantidad').value) || 0;
+            const precio = parseFloat(document.getElementById('editPrecioUnitario').value) || 0;
+            const total = cantidad * precio;
+            
+            document.getElementById('editTotalPagar').textContent = `$ ${total.toFixed(2)}`;
+            return total;
+        }
 
         window.registrarPedido = async function() {
             const nombre = document.getElementById('nombreCliente').value.trim();
             const descripcion = document.getElementById('descripcionPedido').value.trim();
             const cantidad = parseInt(document.getElementById('cantidadDonas').value);
+            const precioUnitario = parseFloat(document.getElementById('precioUnitario').value);
             const total = calcularTotal();
 
             if (!nombre || !descripcion || cantidad < 1 || total <= 0) {
@@ -378,6 +477,7 @@
                     nombre: nombre,
                     descripcion: descripcion,
                     cantidad: cantidad,
+                    precioUnitario: precioUnitario,
                     total: total,
                     entregado: false,
                     timestamp: Date.now() 
@@ -408,13 +508,16 @@
             listaPedidos.innerHTML = '<tr><td colspan="4" style="text-align: center;">Cargando...</td></tr>';
 
             try {
-                // Consulta ordenada: los más recientes (timestamp más alto) primero
                 const q = query(pedidosRef, orderBy("timestamp", "desc"));
                 const querySnapshot = await getDocs(q);
                 
                 pedidos = [];
                 querySnapshot.forEach((doc) => {
-                    pedidos.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    if (data.precioUnitario === undefined) {
+                        data.precioUnitario = (data.total / data.cantidad) || 0;
+                    }
+                    pedidos.push({ id: doc.id, ...data });
                 });
 
                 actualizarListaPedidosUI();
@@ -439,7 +542,6 @@
 
             pedidos.forEach(pedido => {
                 const newRow = listaPedidos.insertRow();
-                // Aplica la clase 'entregado' si el pedido ya fue marcado como tal
                 newRow.className = pedido.entregado ? 'entregado' : '';
                 
                 // Cliente y descripción 
@@ -452,17 +554,28 @@
                 // Botones de acción
                 const accionCell = newRow.insertCell();
                 
-                // Botón Entregado/Pendiente
+                // 1. Botón Editar (AHORA ABRE EL MODAL PERSONALIZADO)
+                const btnEditar = document.createElement('button');
+                btnEditar.className = 'btn-pedido-accion btn-editar';
+                btnEditar.title = 'Editar Pedido';
+                btnEditar.innerHTML = '✏️'; 
+                btnEditar.onclick = () => abrirModalEdicion(pedido); // Cambiado
+                accionCell.appendChild(btnEditar);
+
+                // 2. Botón Entregado/Pendiente
                 const btnEntregado = document.createElement('button');
-                btnEntregado.className = 'btn-pedido-accion btn-entregado';
-                btnEntregado.textContent = pedido.entregado ? '❌ Destachar' : '✔️ Entregado';
-                btnEntregado.onclick = () => alternarEntregado(pedido.id, !pedido.entregado);
+                const esEntregado = pedido.entregado;
+                btnEntregado.className = `btn-pedido-accion ${esEntregado ? 'btn-deshacer' : 'btn-entregado'}`;
+                btnEntregado.title = esEntregado ? 'Marcar como Pendiente' : 'Marcar como Entregado';
+                btnEntregado.innerHTML = esEntregado ? '↩️' : '✅';
+                btnEntregado.onclick = () => alternarEntregado(pedido.id, !esEntregado);
                 accionCell.appendChild(btnEntregado);
 
-                // Botón Eliminar
+                // 3. Botón Eliminar
                 const btnEliminar = document.createElement('button');
                 btnEliminar.className = 'btn-pedido-accion btn-eliminar';
-                btnEliminar.textContent = '🗑️ Eliminar';
+                btnEliminar.title = 'Eliminar Pedido';
+                btnEliminar.innerHTML = '🗑️';
                 btnEliminar.onclick = () => eliminarPedido(pedido.id);
                 accionCell.appendChild(btnEliminar);
                 
@@ -500,8 +613,74 @@
                 mostrarToast('🛑 Error al eliminar el pedido.', 'error');
             }
         }
+        
+        // --- FUNCIONES PARA EL MODAL DE EDICIÓN ---
+        
+        /**
+         * Abre el modal de edición y precarga los datos del pedido.
+         */
+        window.abrirModalEdicion = function(pedido) {
+            // Cargar ID (oculto)
+            document.getElementById('editId').value = pedido.id;
+            
+            // Cargar datos de campos
+            document.getElementById('editNombre').value = pedido.nombre;
+            document.getElementById('editDescripcion').value = pedido.descripcion;
+            document.getElementById('editCantidad').value = pedido.cantidad;
+            document.getElementById('editPrecioUnitario').value = pedido.precioUnitario.toFixed(2);
+            
+            // Recalcular y mostrar el total actual
+            calcularTotalEdicion();
+            
+            // Mostrar el modal
+            document.getElementById('modalEdicion').style.display = 'block';
+        }
 
-        // --- Funciones para el Modal ---
+        /**
+         * Cierra el modal de edición.
+         */
+        window.cerrarModalEdicion = function() {
+            document.getElementById('modalEdicion').style.display = 'none';
+        }
+        
+        /**
+         * Lee los datos del modal de edición y actualiza el documento en Firebase.
+         */
+        window.guardarEdicion = async function() {
+            const id = document.getElementById('editId').value;
+            const nuevoNombre = document.getElementById('editNombre').value.trim();
+            const nuevaDescripcion = document.getElementById('editDescripcion').value.trim();
+            const nuevaCantidad = parseInt(document.getElementById('editCantidad').value);
+            const nuevoPrecio = parseFloat(document.getElementById('editPrecioUnitario').value);
+            const nuevoTotal = calcularTotalEdicion();
+
+            if (!nuevoNombre || !nuevaDescripcion || nuevaCantidad < 1 || nuevoPrecio <= 0) {
+                mostrarToast('❌ Por favor, completa todos los campos de edición correctamente.', 'error');
+                return;
+            }
+            
+            try {
+                const pedidoDoc = doc(db, PEDIDOS_COLLECTION, id);
+                await updateDoc(pedidoDoc, {
+                    nombre: nuevoNombre,
+                    descripcion: nuevaDescripcion,
+                    cantidad: nuevaCantidad,
+                    precioUnitario: nuevoPrecio,
+                    total: nuevoTotal
+                });
+                
+                mostrarToast(`✏️ Pedido de ${nuevoNombre} actualizado correctamente.`, 'success');
+                cerrarModalEdicion(); 
+                await cargarPedidos(); 
+                
+            } catch (e) {
+                console.error("Error guardando edición: ", e);
+                mostrarToast('🛑 Error al guardar los cambios.', 'error');
+            }
+        }
+
+
+        // --- Funciones para el Modal General de Pedidos ---
         window.abrirModal = async function() {
             document.getElementById('modalPedidos').style.display = 'block';
             await cargarPedidos(); 
@@ -511,10 +690,16 @@
             document.getElementById('modalPedidos').style.display = 'none';
         }
         
+        // Cierre de modales al hacer clic fuera
         window.onclick = function(event) {
-            const modal = document.getElementById('modalPedidos');
-            if (event.target === modal) {
+            const modalPedidos = document.getElementById('modalPedidos');
+            const modalEdicion = document.getElementById('modalEdicion');
+            
+            if (event.target === modalPedidos) {
                 cerrarModal();
+            }
+            if (event.target === modalEdicion) {
+                cerrarModalEdicion();
             }
         }
 
